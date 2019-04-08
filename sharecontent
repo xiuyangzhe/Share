@@ -1,0 +1,202 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+
+namespace Trusted.Utils
+{
+    /// <summary>
+    /// Log4Net帮助类
+    /// </summary>
+    public class Log
+    {
+        public static readonly log4net.ILog Logdebug = log4net.LogManager.GetLogger("logdebug");
+        public static readonly log4net.ILog Loginfo = log4net.LogManager.GetLogger("loginfo");
+        public static readonly log4net.ILog Logwarn = log4net.LogManager.GetLogger("logwarn");
+        public static readonly log4net.ILog Logerror = log4net.LogManager.GetLogger("logerror");
+        public static readonly log4net.ILog Logfatal = log4net.LogManager.GetLogger("logfatal");
+        public static readonly log4net.ILog LogOracle = log4net.LogManager.GetLogger("WarningDatail_Oracle");
+
+        public Log()
+        {
+            log4net.Config.XmlConfigurator.Configure();
+        }
+
+        public static void SetConfig()
+        {
+            log4net.Config.XmlConfigurator.Configure();
+        }
+
+        public static void SetConfig(FileInfo configFile)
+        {
+            log4net.Config.XmlConfigurator.Configure(configFile);
+        }
+
+        public static void Info(string info)
+        {
+
+            Loginfo.Info(info);
+
+        }
+
+        /// <summary>
+        /// DEBUG （调试信息）：记录系统用于调试的一切信息，内容或者是一些关键数据内容的输出。
+        /// </summary>
+        /// <param name="info"></param>
+        public static void Debug(string info)
+        {
+
+            Logdebug.Debug(info);
+
+        }
+
+        /// <summary>
+        /// WARN（警告）：记录系统中不影响系统继续运行，但不符合系统运行正常条件，有可能引起系统错误的信息。例如，记录内容为空，数据内容不正确等。
+        /// </summary>
+        /// <param name="info"></param>
+        public static void Warn(string info)
+        {
+            if (Logwarn.IsWarnEnabled)
+            {
+                Logwarn.Warn(info);
+            }
+        }
+
+        /// <summary>
+        /// ERROR（一般错误）：记录系统中出现的导致系统不稳定，部分功能出现混乱或部分功能失效一类的错误。例如，数据字段为空，数据操作不可完成，操作出现异常等。
+        /// </summary>
+        /// <param name="info"></param>
+        /// <param name="se"></param>
+        public static void Error(string info, Exception se)
+        {
+
+            Logerror.Error(info, se);
+
+        }
+
+        /// <summary>
+        /// 错误记录
+        /// </summary>
+        /// <param name="info"></param>
+        public static void Error(string info)
+        {
+            if (Logerror.IsErrorEnabled)
+            {
+                Logerror.Error(info);
+            }
+        }
+
+        public static void Error(Exception info)
+        {
+            if (Logerror.IsErrorEnabled)
+            {
+                Logerror.Error(info);
+            }
+        }
+
+        /// <summary>
+        /// FATAL（致命错误）：记录系统中出现的能使用系统完全失去功能，服务停止，系统崩溃等使系统无法继续运行下去的错误。例如，数据库无法连接，系统出现死循环。
+        /// </summary>
+        /// <param name="info"></param>
+        /// <param name="se"></param>
+        public static void Fatal(string info, Exception se)
+        {
+            if (Logfatal.IsFatalEnabled)
+            {
+                Logfatal.Fatal(info, se);
+            }
+        }
+    }
+}
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Trusted.Utils
+{
+    /// <summary>
+    /// 工具类
+    /// </summary>
+    public static class Utils
+    {
+        #region 校验身份证合法性
+        /// <summary>
+        /// 校验身份证号是否符合规范 参考网址：
+        /// </summary>
+        /// <param name="">身份证号</param>
+        /// <returns></returns>
+        public static bool CheckIdCard_text(string idNumber)
+        {
+            if (idNumber.Length == 18)
+            {
+                bool check = CheckIdCard_text18(idNumber);
+                return check;
+            }
+            else if (idNumber.Length == 15)
+            {
+                bool check = CheckIdCard_text15(idNumber);
+                return check;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        private static bool CheckIdCard_text18(string Id)
+        {
+            long n = 0;
+            if (long.TryParse(Id.Remove(17), out n) == false || n < Math.Pow(10, 16) || long.TryParse(Id.Replace('x', '0').Replace('X', '0'), out n) == false)
+            {
+                return false;//数字验证  
+            }
+            string address = "11x22x35x44x53x12x23x36x45x54x13x31x37x46x61x14x32x41x50x62x15x33x42x51x63x21x34x43x52x64x65x71x81x82x91";
+            if (address.IndexOf(Id.Remove(2)) == -1)
+            {
+                return false;//省份验证  
+            }
+
+            string birth = Id.Substring(6, 8).Insert(6, "-").Insert(4, "-");
+            DateTime time = new DateTime();
+            if (DateTime.TryParse(birth, out time) == false)
+            {
+                return false;//生日验证  
+            }
+
+            string[] arrVarifyCode = ("1,0,x,9,8,7,6,5,4,3,2").Split(',');
+            string[] Wi = ("7,9,10,5,8,4,2,1,6,3,7,9,10,5,8,4,2").Split(',');
+            char[] Ai = Id.Remove(17).ToCharArray();
+            int sum = 0;
+            for (int i = 0; i < 17; i++)
+            {
+                sum += int.Parse(Wi[i]) * int.Parse(Ai[i].ToString());
+            }
+            int y = -1;
+            DivRem(sum, 11, out y);
+            if (arrVarifyCode[y] != Id.Substring(17, 1).ToLower())
+            {
+                return false;//校验码验证  
+            }
+            return true;//符合GB11643-1999标准  
+        }
+
+        private static int DivRem(int a, int b, out int result)
+        {
+            result = a % b;
+            return (a / b);
+        }
+
+        private static bool CheckIdCard_text15(string Id)
+        {
+            long n = 0;
+            if (long.TryParse(Id, out n) == false || n < Math.Pow(10, 14))
+            {
+                return false;//数字验证  
+            }
+            string address = 
